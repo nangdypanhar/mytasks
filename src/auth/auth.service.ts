@@ -22,16 +22,15 @@ export class AuthService {
     if (existingUser) {
       throw new ConflictException(`Email ${email} is already registered`);
     }
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const user = await this.usersRepository.save(
-      this.usersRepository.create({ email, password: hashedPassword }),
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    return this.usersRepository.save(
+      this.usersRepository.create({ email, passwordHash }),
     );
-    return { id: user.id, email: user.email };
   }
 
   async login({ email, password }: LoginDto) {
     const user = await this.usersRepository.findOneBy({ email });
-    const passwordMatches = user && (await bcrypt.compare(password, user.password));
+    const passwordMatches = user && (await bcrypt.compare(password, user.passwordHash));
     if (!user || !passwordMatches) {
       throw new UnauthorizedException('Invalid email or password');
     }
