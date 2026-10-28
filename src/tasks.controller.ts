@@ -1,5 +1,6 @@
-import { Body, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { Controller, Get } from '@nestjs/common';
+import { AuthGuard } from './auth/auth.guard.js';
 import { UserAgent } from './common/user-agent.decorator.js';
 import { TasksService } from './tasks.service.js';
 import { Patch } from '@nestjs/common';
@@ -17,6 +18,7 @@ export class TasksController {
   }
 
   @Post()
+  @UseGuards(AuthGuard)
   createTask(@Body() createTaskDto: CreateTaskDto) {
     return this.tasksService.create(createTaskDto.title);
   }
@@ -38,11 +40,13 @@ export class TasksController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard)
   updateTask(@Param('id', ParseIntPipe) id: number, @Body() updateTaskDto: UpdateTaskDto) {
     return this.tasksService.update(id, updateTaskDto.done);
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
   deleteTask(@Param('id', ParseIntPipe) id: number) {
     return this.tasksService.delete(id);
   }
