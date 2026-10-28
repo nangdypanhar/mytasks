@@ -1,55 +1,70 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Task } from "./task.entity.js";
+
+const fakeDatabaseDelay = () =>
+  new Promise<void>(resolve => setTimeout(resolve, 500));
 
 @Injectable()
 export class TasksService {
-  private tasks = [
-    {
-      id: 1,
-      title: "Do homework",
-      done: false
-    },
-    {
-      id: 2,
-      title: "Read a book",
-      done: true
-    }
-  ];
+  private readonly logger = new Logger(TasksService.name);
 
-  private nextId = 3;
+  constructor(
+    @InjectRepository(Task)
+    private tasksRepository: Repository<Task>,
+  ) {}
 
-  findAll() {
-    return this.tasks;
+  async findAll() {
+    await fakeDatabaseDelay();
+    return this.tasksRepository.find();
   }
 
-  findOne(id: number) {
-    return this.tasks.find(task => task.id === id);
-  }
-
-  findTodoTasks() {
-    return this.tasks.filter(task => !task.done);
-  }
-
-  create(title: string) {
-    const task = { id: this.nextId++, title, done: false };
-    this.tasks.push(task);
-    return task;
-  }
-
-  update(id: number, done: boolean) {
-    const task = this.tasks.find(task => task.id === id);
-    if (task) {
-      task.done = done;
+  async findOne(id: number) {
+    await fakeDatabaseDelay();
+    const task = await this.tasksRepository.findOneBy({ id });
+    if (!task) {
+      this.logger.warn(`Task with id ${id} not found`);
+      throw new NotFoundException(`Task with id ${id} not found`);
     }
     return task;
   }
 
-  delete(id: number) {
-    const index = this.tasks.findIndex(task => task.id === id);
-    if (index !== -1) {
-      const deletedTask = this.tasks.splice(index, 1)[0];
-      return this.tasks;
-    }
-    return null;
+  async findTodoTasks() {
+    await fakeDatabaseDelay();
+    return this.tasksRepository.find({ where: { done: false } });
   }
 
+  async create(title: string) {
+    await fakeDatabaseDelay();
+    const task = this.tasksRepository.create({ title, done: false });
+    const savedTask = await this.tasksRepository.save(task);
+    this.logger.debug(`New task title: "${savedTask.title}"`);
+    this.logger.log(`Task ${savedTask.id} created`);
+    return savedTask;
+  }
+
+  async update(id: number, done: boolean) {
+    await fakeDatabaseDelay();
+    const task = await this.tasksRepository.findOneBy({ id });
+    if (!task) {
+      this.logger.warn(`Task with id ${id} not found`);
+      throw new NotFoundException(`Task with id ${id} not found`);
+    }
+    task.done = done;
+    const savedTask = await this.tasksRepository.save(task);
+    this.logger.log(`Task ${id} updated (done: ${done})`);
+    return savedTask;
+  }
+
+  async delete(id: number) {
+    await fakeDatabaseDelay();
+    const result = await this.tasksRepository.delete(id);
+    if (!result.affected) {
+      this.logger.warn(`Task with id ${id} not found`);
+      throw new NotFoundException(`Task with id ${id} not found`);
+    }
+    this.logger.log(`Task ${id} deleted`);
+    return this.tasksRepository.find();
+  }
 }
